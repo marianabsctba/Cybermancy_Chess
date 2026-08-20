@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CYBERMANCY CHESS // Xadrez Bruxo de Cibersegurança</title>
+<style>
+  :root{
+    --bg:#06070b;
+    --panel:#0c1017;
+    --panel2:#111824;
+    --line:#243244;
+    --text:#e8f1ff;
+    --muted:#8fa3ba;
+    --cyan:#00f5ff;
+    --green:#60ff9d;
+    --violet:#b66cff;
+    --red:#ff4b6e;
+    --gold:#ffd166;
+    --sq1:#17202c;
+    --sq2:#0b1119;
+    --sel:#1e4860;
+    --legal:#163a32;
+    --capture:#481e2a;
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;min-height:100%;background:
+    radial-gradient(circle at 20% 10%, rgba(0,245,255,.08), transparent 24%),
+    radial-gradient(circle at 80% 20%, rgba(182,108,255,.09), transparent 28%),
+    linear-gradient(180deg,#05070b,#090d13 55%,#05070b);
+    color:var(--text);font-family:Inter,Segoe UI,system-ui,sans-serif;overflow-x:hidden}
+
+  body:before{
+    content:"";position:fixed;inset:0;pointer-events:none;opacity:.12;
+    background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+    background-size:24px 24px;
+    mask-image:linear-gradient(to bottom,black,transparent 90%);
+  }
+
+  .shell{width:min(1500px,96vw);margin:0 auto;padding:22px 0 30px}
+  .topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+  .brand{display:flex;gap:14px;align-items:center}
+  .sigil{width:48px;height:48px;border:1px solid rgba(0,245,255,.45);border-radius:14px;display:grid;place-items:center;
+    background:linear-gradient(135deg,rgba(0,245,255,.12),rgba(182,108,255,.12));box-shadow:0 0 24px rgba(0,245,255,.12)}
+  .sigil svg{width:28px;height:28px}
+  h1{font-size:clamp(20px,2vw,31px);margin:0;letter-spacing:.06em}
+  .subtitle{font-size:12px;color:var(--muted);letter-spacing:.16em;text-transform:uppercase;margin-top:4px}
+  .status-pill{border:1px solid #243244;background:#0a0e14;border-radius:999px;padding:9px 13px;font-size:12px;color:#bcd0e5;white-space:nowrap}
+  .status-pill b{color:var(--green)}
+
+  .grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(290px,390px);gap:18px}
+  .board-panel,.side-panel{border:1px solid #202b3a;background:rgba(9,13,19,.86);border-radius:22px;box-shadow:0 18px 70px rgba(0,0,0,.32);backdrop-filter:blur(12px)}
+  .board-panel{padding:18px}
+  .side-panel{padding:16px;display:flex;flex-direction:column;gap:12px;min-height:0}
+
+  .player{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 3px}
+  .player-main{display:flex;align-items:center;gap:10px}
+  .avatar{width:38px;height:38px;border-radius:12px;display:grid;place-items:center;font-weight:800;border:1px solid #33465d;background:#101824}
+  .avatar.black{box-shadow:inset 0 0 18px rgba(182,108,255,.16)}
+  .avatar.white{box-shadow:inset 0 0 18px rgba(0,245,255,.14)}
+  .player-name{font-weight:700;font-size:14px}
+  .player-role{font-size:11px;color:var(--muted);margin-top:2px}
+  .turn-dot{width:9px;height:9px;border-radius:50%;background:#314156;box-shadow:none;transition:.2s}
+  .player.active .turn-dot{background:var(--green);box-shadow:0 0 14px var(--green)}
+
+  .board-wrap{position:relative;aspect-ratio:1;max-width:780px;margin:0 auto;border-radius:16px;overflow:hidden;border:1px solid #314154;
+    box-shadow:0 0 0 1px rgba(0,245,255,.04),0 0 44px rgba(0,245,255,.08),inset 0 0 45px rgba(0,0,0,.55)}
+  #board{display:grid;grid-template-columns:repeat(8,1fr);width:100%;height:100%;position:relative}
+  .square{position:relative;display:grid;place-items:center;user-select:none;cursor:pointer;transition:background .12s,filter .12s}
+  .square.light{background:var(--sq1)}
+  .square.dark{background:var(--sq2)}
+  .square:hover{filter:brightness(1.15)}
+  .square.selected{background:var(--sel)!important;box-shadow:inset 0 0 25px rgba(0,245,255,.2)}
+  .square.legal:after,.square.capture:after{content:"";position:absolute;z-index:2;border-radius:50%;pointer-events:none}
+  .square.legal:after{width:16%;height:16%;background:rgba(96,255,157,.72);box-shadow:0 0 14px rgba(96,255,157,.5)}
+  .square.capture:after{inset:8%;border:2px solid rgba(255,75,110,.9);border-radius:13px;box-shadow:inset 0 0 20px rgba(255,75,110,.12),0 0 14px rgba(255,75,110,.26)}
+  .square.in-check{background:#4b1522!important;animation:dangerPulse 1s infinite alternate}
+  @keyframes dangerPulse{to{box-shadow:inset 0 0 35px rgba(255,75,110,.65)}}
+  .coord{position:absolute;font-size:9px;font-weight:700;color:rgba(210,226,245,.35);z-index:1}
+  .coord.file{right:5px;bottom:3px}.coord.rank{left:5px;top:3px}
+
+  .piece{font-family:"Segoe UI Symbol","Noto Sans Symbols 2",serif;font-size:clamp(32px,6vw,72px);line-height:1;z-index:3;transition:transform .15s,filter .15s;
+    filter:drop-shadow(0 3px 2px rgba(0,0,0,.65));position:relative}
+  .piece.white{color:#e9fbff;text-shadow:0 0 10px rgba(0,245,255,.7),0 0 24px rgba(0,245,255,.25)}
+  .piece.black{color:#d7b7ff;text-shadow:0 0 10px rgba(182,108,255,.75),0 0 24px rgba(182,108,255,.35)}
+  .square:hover .piece{transform:translateY(-2px) scale(1.04)}
+  .piece.selected-piece{animation:floatPiece 1s ease-in-out infinite alternate}
+  @keyframes floatPiece{to{transform:translateY(-5px);filter:drop-shadow(0 8px 8px rgba(0,0,0,.6)) brightness(1.15)}}
+
+  .board-fx{position:absolute;inset:0;pointer-events:none;z-index:9;overflow:hidden}
+  .spell-ring{position:absolute;width:18px;height:18px;border:2px solid var(--cyan);border-radius:50%;transform:translate(-50%,-50%);animation:ring .62s ease-out forwards;box-shadow:0 0 14px var(--cyan)}
+  .spell-ring.red{border-color:var(--red);box-shadow:0 0 18px var(--red)}
+  @keyframes ring{0%{opacity:1;width:12px;height:12px}100%{opacity:0;width:140px;height:140px}}
+  .particle{position:absolute;width:3px;height:3px;border-radius:50%;background:currentColor;box-shadow:0 0 8px currentColor;animation:burst .7s ease-out forwards}
+  @keyframes burst{to{transform:translate(var(--dx),var(--dy)) scale(.1);opacity:0}}
+  .rune{position:absolute;transform:translate(-50%,-50%);font-size:20px;color:var(--cyan);text-shadow:0 0 16px var(--cyan);animation:rune 1s ease-out forwards}
+  @keyframes rune{0%{opacity:0;transform:translate(-50%,-50%) scale(.4) rotate(0)}40%{opacity:1}100%{opacity:0;transform:translate(-50%,-80%) scale(1.3) rotate(90deg)}}
+
+  .section{border:1px solid #202d3d;background:linear-gradient(180deg,#0c121b,#090d14);border-radius:16px;padding:13px}
+  .section-title{font-size:11px;text-transform:uppercase;letter-spacing:.14em;color:#8fa3ba;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between}
+  .turn-big{font-size:17px;font-weight:800;letter-spacing:.02em}
+  .turn-big .cyan{color:var(--cyan)} .turn-big .violet{color:var(--violet)}
+  .threat{font-size:12px;color:#aab9c9;margin-top:5px;line-height:1.4}
+
+  .buttons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  button{appearance:none;border:1px solid #2b3a4e;background:#101823;color:#dfeeff;padding:10px 11px;border-radius:12px;cursor:pointer;font-weight:700;font-size:12px;transition:.15s}
+  button:hover{border-color:#45617e;transform:translateY(-1px);background:#131e2b}
+  button.primary{background:linear-gradient(135deg,rgba(0,245,255,.15),rgba(96,255,157,.08));border-color:rgba(0,245,255,.35)}
+  button.danger{border-color:rgba(255,75,110,.3)}
+
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .legend-item{border:1px solid #1e2a38;border-radius:10px;padding:8px;background:#0a0f16}
+  .legend-item strong{display:block;font-size:11px;color:#dcecff}
+  .legend-item span{font-size:10px;color:#8195aa}
+
+  .terminal{min-height:180px;max-height:250px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11px;line-height:1.55;padding-right:4px}
+  .log{margin:0 0 6px;color:#a7b8c8}.log .time{color:#526a82}.log.ok{color:#89ffb8}.log.warn{color:#ffd166}.log.bad{color:#ff7893}.log.magic{color:#cab0ff}
+  .terminal::-webkit-scrollbar{width:6px}.terminal::-webkit-scrollbar-thumb{background:#24354a;border-radius:6px}
+
+  .captured{display:flex;gap:5px;min-height:25px;align-items:center;flex-wrap:wrap}
+  .cap{font-family:"Segoe UI Symbol";font-size:19px;opacity:.78}
+
+  .footer-note{margin-top:12px;text-align:center;color:#5f7388;font-size:10px;letter-spacing:.08em}
+
+  .modal{position:fixed;inset:0;z-index:50;background:rgba(2,4,8,.75);display:none;place-items:center;backdrop-filter:blur(7px)}
+  .modal.show{display:grid}
+  .modal-card{width:min(430px,92vw);border:1px solid #31455e;background:#0b1119;border-radius:20px;padding:18px;box-shadow:0 25px 100px rgba(0,0,0,.6),0 0 35px rgba(0,245,255,.08)}
+  .modal-card h2{margin:0 0 8px}.modal-card p{color:#9fb1c4;font-size:13px}
+  .promo{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .promo button{font-family:"Segoe UI Symbol";font-size:36px;height:75px}
+
+  .glitch{animation:glitch .28s linear 2}
+  @keyframes glitch{
+    0%{transform:translate(0);filter:none}
+    30%{transform:translate(2px,-1px);filter:hue-rotate(40deg)}
+    60%{transform:translate(-2px,1px);filter:hue-rotate(-40deg)}
+    100%{transform:translate(0);filter:none}
+  }
+
+  @media(max-width:950px){
+    .grid{grid-template-columns:1fr}
+    .side-panel{display:grid;grid-template-columns:1fr 1fr}
+    .terminal-section{grid-column:1/-1}
+  }
+  @media(max-width:620px){
+    .shell{width:100%;padding:8px}
+    .topbar{align-items:flex-start}.status-pill{display:none}
+    .board-panel{padding:9px;border-radius:16px}
+    .side-panel{display:flex}
+    .piece{font-size:clamp(27px,11vw,54px)}
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="brand">
+      <div class="sigil">
+        <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <path d="M12 20 32 8l20 12v24L32 56 12 44V20Z" stroke="#00f5ff" stroke-width="2"/>
+          <path d="m22 36 8-18 4 12h10L30 47l-2-11h-6Z" fill="#b66cff"/>
+        </svg>
+      </div>
+      <div>
+        <h1>CYBERMANCY CHESS</h1>
+        <div class="subtitle">xadrez bruxo // offensive magic simulator</div>
+      </div>
+    </div>
+    <div class="status-pill">NODE: <b>ENCHANTED</b> &nbsp;|&nbsp; TLS 13¾</div>
+  </div>
+
+  <div class="grid">
+    <section class="board-panel">
+      <div class="player" id="playerBlack">
+        <div class="player-main">
+          <div class="avatar black">☽</div>
+          <div><div class="player-name">Shadow Operator</div><div class="player-role">Red Team // feitiçaria ofensiva</div></div>
+        </div>
+        <div class="turn-dot"></div>
+      </div>
+
+      <div class="board-wrap" id="boardWrap">
+        <div id="board"></div>
+        <div class="board-fx" id="boardFx"></div>
+      </div>
+
+      <div class="player" id="playerWhite">
+        <div class="player-main">
+          <div class="avatar white">⌁</div>
+          <div><div class="player-name">Blue Mage</div><div class="player-role">Blue Team // defesa arcana</div></div>
+        </div>
+        <div class="turn-dot"></div>
+      </div>
+      <div class="footer-note">ZERO TRUST APPLIES TO PAWNS TOO.</div>
+    </section>
+
+    <aside class="side-panel">
+      <div class="section">
+        <div class="section-title"><span>Estado do duelo</span><span id="moveCount">MOVE 01</span></div>
+        <div class="turn-big" id="turnText"><span class="cyan">BLUE MAGE</span> joga</div>
+        <div class="threat" id="threatText">Perímetro estável. Nenhum IOC real. Ainda.</div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Controles</div>
+        <div class="buttons">
+          <button class="primary" id="newBtn">↻ Nova batalha</button>
+          <button id="flipBtn">⇅ Virar tabuleiro</button>
+          <button id="soundBtn">♪ Som: ON</button>
+          <button class="danger" id="undoBtn">⟲ Desfazer</button>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Peças comprometidas</div>
+        <div class="captured" id="capturedWhite"></div>
+        <div class="captured" id="capturedBlack"></div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Codex arcano-cyber</div>
+        <div class="legend">
+          <div class="legend-item"><strong>♔ Root CA</strong><span>o rei do domínio</span></div>
+          <div class="legend-item"><strong>♕ Zero-Day</strong><span>rainha sem patch</span></div>
+          <div class="legend-item"><strong>♖ Firewall</strong><span>torre de perímetro</span></div>
+          <div class="legend-item"><strong>♗ Threat Intel</strong><span>bispo vê diagonais</span></div>
+          <div class="legend-item"><strong>♘ Red Teamer</strong><span>pula segmentação</span></div>
+          <div class="legend-item"><strong>♙ Analyst</strong><span>peão do SOC :')</span></div>
+        </div>
+      </div>
+
+      <div class="section terminal-section">
+        <div class="section-title"><span>SIEM Arcano</span><span>LIVE</span></div>
+        <div class="terminal" id="terminal"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal" id="promotionModal">
+  <div class="modal-card">
+    <h2>Privilege Escalation</h2>
+    <p>Seu Analyst chegou ao último rank. Escolha qual permissão ele vai abusar:</p>
+    <div class="promo" id="promoButtons"></div>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+const symbols = {
+  w:{k:'♔',q:'♕',r:'♖',b:'♗',n:'♘',p:'♙'},
+  b:{k:'♚',q:'♛',r:'♜',b:'♝',n:'♞',p:'♟'}
+};
+const names = {k:'Root CA',q:'Zero-Day',r:'Firewall',b:'Threat Intel',n:'Red Teamer',p:'SOC Analyst'};
+const files='abcdefgh';
+
+let board=[], turn='w', selected=null, legalTargets=[], history=[], flipped=false, soundOn=true;
+let enPassant=null, castling={w:{k:true,q:true},b:{k:true,q:true}}, halfmove=0, moveNumber=1;
+let captured={w:[],b:[]}, pendingPromotion=null, gameOver=false;
+
+const boardEl=document.getElementById('board');
+const fxEl=document.getElementById('boardFx');
+const terminal=document.getElementById('terminal');
+const promotionModal=document.getElementById('promotionModal');
+
+function emptyBoard(){ return Array.from({length:8},()=>Array(8).fill(null)); }
+function clone(obj){ return JSON.parse(JSON.stringify(obj)); }
+function initial(){
+  const b=emptyBoard();
+  const back=['r','n','b','q','k','b','n','r'];
+  for(let c=0;c<8;c++){
+    b[0][c]={c:'b',t:back[c]}; b[1][c]={c:'b',t:'p'};
+    b[6][c]={c:'w',t:'p'}; b[7][c]={c:'w',t:back[c]};
+  }
+  return b;
+}
+function reset(){
+  board=initial(); turn='w'; selected=null; legalTargets=[]; history=[]; flipped=false;
+  enPassant=null; castling={w:{k:true,q:true},b:{k:true,q:true}}; halfmove=0; moveNumber=1;
+  captured={w:[],b:[]}; pendingPromotion=null; gameOver=false; terminal.innerHTML='';
+  log('BOOT','Cybermancy kernel carregado. Regras clássicas, magia questionável.','magic');
+  log('EDR','Blue Mage assume o primeiro turno. Telemetria habilitada.','ok');
+  render();
+}
+function squareName(r,c){return files[c]+(8-r)}
+function fromName(s){return {r:8-Number(s[1]),c:files.indexOf(s[0])}}
+function inside(r,c){return r>=0&&r<8&&c>=0&&c<8}
+
+function render(){
+  boardEl.innerHTML='';
+  const rows=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];
+  const cols=flipped?[7,6,5,4,3,2,1,0]:[0,1,2,3,4,5,6,7];
+  const checkKing=findKing(turn);
+  const check=isKingInCheck(turn,board);
+
+  rows.forEach((r,ri)=>cols.forEach((c,ci)=>{
+    const sq=document.createElement('div');
+    sq.className='square '+(((r+c)%2===0)?'light':'dark');
+    sq.dataset.r=r; sq.dataset.c=c;
+    if(selected&&selected.r===r&&selected.c===c)sq.classList.add('selected');
+    const target=legalTargets.find(m=>m.r===r&&m.c===c);
+    if(target)sq.classList.add(board[r][c]||target.enPassant?'capture':'legal');
+    if(check && checkKing && checkKing.r===r&&checkKing.c===c)sq.classList.add('in-check');
+
+    if((!flipped&&c===0)||(flipped&&c===7)){
+      const rank=document.createElement('span'); rank.className='coord rank'; rank.textContent=8-r; sq.appendChild(rank);
+    }
+    if((!flipped&&r===7)||(flipped&&r===0)){
+      const file=document.createElement('span'); file.className='coord file'; file.textContent=files[c]; sq.appendChild(file);
+    }
+    const p=board[r][c];
+    if(p){
+      const pe=document.createElement('span');
+      pe.className='piece '+(p.c==='w'?'white':'black')+(selected&&selected.r===r&&selected.c===c?' selected-piece':'');
+      pe.textContent=symbols[p.c][p.t];
+      pe.title=(p.c==='w'?'Blue ':'Shadow ')+names[p.t];
+      sq.appendChild(pe);
+    }
+    sq.addEventListener('click',onSquare);
+    boardEl.appendChild(sq);
+  }));
+
+  document.getElementById('playerWhite').classList.toggle('active',turn==='w'&&!gameOver);
+  document.getElementById('playerBlack').classList.toggle('active',turn==='b'&&!gameOver);
+  document.getElementById('moveCount').textContent='MOVE '+String(moveNumber).padStart(2,'0');
+  document.getElementById('turnText').innerHTML=gameOver?'DUEL ENCERRADO':
+    turn==='w'?'<span class="cyan">BLUE MAGE</span> joga':'<span class="violet">SHADOW OPERATOR</span> joga';
+
+  const currentCheck=isKingInCheck(turn,board);
+  document.getElementById('threatText').textContent=currentCheck?
+    '⚠ ALERTA CRÍTICO: Root CA sob ataque. Contenção imediata necessária.':
+    'Perímetro estável. Nenhum IOC real. Ainda.';
+
+  const capW=document.getElementById('capturedWhite'),capB=document.getElementById('capturedBlack');
+  capW.innerHTML='<span style="font-size:10px;color:#7f93a7;width:56px">BLUE:</span>'+captured.w.map(t=>`<span class="cap" style="color:#e9fbff">${symbols.w[t]}</span>`).join('');
+  capB.innerHTML='<span style="font-size:10px;color:#7f93a7;width:56px">SHADOW:</span>'+captured.b.map(t=>`<span class="cap" style="color:#d7b7ff">${symbols.b[t]}</span>`).join('');
+}
+
+function onSquare(e){
+  if(gameOver||pendingPromotion)return;
+  const r=+e.currentTarget.dataset.r,c=+e.currentTarget.dataset.c,p=board[r][c];
+
+  if(selected){
+    const move=legalTargets.find(m=>m.r===r&&m.c===c);
+    if(move){ executeMove(selected,{r,c,...move}); return; }
+    if(p&&p.c===turn){ select(r,c); return; }
+    selected=null;legalTargets=[];render();return;
+  }
+  if(p&&p.c===turn)select(r,c);
+}
+
+function select(r,c){
+  selected={r,c};
+  legalTargets=legalMovesFor(r,c,true);
+  tone(520,.04,'sine');
+  render();
+}
+
+function pseudoMoves(r,c,b=board,includeCastle=true){
+  const p=b[r][c]; if(!p)return[];
+  const out=[], enemy=p.c==='w'?'b':'w';
+  const add=(rr,cc,extra={})=>{if(inside(rr,cc)&&(!b[rr][cc]||b[rr][cc].c===enemy))out.push({r:rr,c:cc,...extra});};
+  if(p.t==='p'){
+    const d=p.c==='w'?-1:1,start=p.c==='w'?6:1;
+    if(inside(r+d,c)&&!b[r+d][c]){
+      out.push({r:r+d,c});
+      if(r===start&&!b[r+2*d][c])out.push({r:r+2*d,c,doublePawn:true});
+    }
+    for(const dc of [-1,1]){
+      const rr=r+d,cc=c+dc;
+      if(inside(rr,cc)&&b[rr][cc]&&b[rr][cc].c===enemy)out.push({r:rr,c:cc});
+      if(enPassant&&enPassant.r===rr&&enPassant.c===cc)out.push({r:rr,c:cc,enPassant:true});
+    }
+  } else if(p.t==='n'){
+    [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].forEach(([a,d])=>add(r+a,c+d));
+  } else if(p.t==='k'){
+    for(let a=-1;a<=1;a++)for(let d=-1;d<=1;d++)if(a||d)add(r+a,c+d);
+    if(includeCastle){
+      const home=p.c==='w'?7:0;
+      if(r===home&&c===4&&!isKingInCheck(p.c,b)){
+        if(castling[p.c].k && b[home][7]?.t==='r'&&b[home][7]?.c===p.c&&!b[home][5]&&!b[home][6]
+          && !isSquareAttacked(home,5,enemy,b)&&!isSquareAttacked(home,6,enemy,b)) out.push({r:home,c:6,castle:'k'});
+        if(castling[p.c].q && b[home][0]?.t==='r'&&b[home][0]?.c===p.c&&!b[home][1]&&!b[home][2]&&!b[home][3]
+          && !isSquareAttacked(home,3,enemy,b)&&!isSquareAttacked(home,2,enemy,b)) out.push({r:home,c:2,castle:'q'});
+      }
+    }
+  } else {
+    const dirs=p.t==='b'?[[-1,-1],[-1,1],[1,-1],[1,1]]:
+      p.t==='r'?[[-1,0],[1,0],[0,-1],[0,1]]:
+      [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+    dirs.forEach(([dr,dc])=>{
+      let rr=r+dr,cc=c+dc;
+      while(inside(rr,cc)){
+        if(!b[rr][cc])out.push({r:rr,c:cc});
+        else {if(b[rr][cc].c===enemy)out.push({r:rr,c:cc});break;}
+        rr+=dr;cc+=dc;
+      }
+    });
+  }
+  return out;
+}
+
+function legalMovesFor(r,c,filterCheck=true){
+  const p=board[r][c];if(!p)return[];
+  const moves=pseudoMoves(r,c,board,true);
+  if(!filterCheck)return moves;
+  return moves.filter(m=>{
+    const test=clone(board);
+    applyToBoard(test,{r,c},m,p,false);
+    return !isKingInCheck(p.c,test);
+  });
+}
+
+function applyToBoard(b,from,to,p,real=false){
+  b[to.r][to.c]=clone(p); b[from.r][from.c]=null;
+  if(to.enPassant){ const capR=from.r; b[capR][to.c]=null; }
+  if(to.castle){
+    const home=from.r;
+    if(to.castle==='k'){b[home][5]=b[home][7];b[home][7]=null;}
+    else {b[home][3]=b[home][0];b[home][0]=null;}
+  }
+}
+
+function findKing(color,b=board){
+  for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(b[r][c]?.c===color&&b[r][c].t==='k')return{r,c};
+  return null;
+}
+function isSquareAttacked(r,c,byColor,b=board){
+  for(let rr=0;rr<8;rr++)for(let cc=0;cc<8;cc++){
+    const p=b[rr][cc]; if(!p||p.c!==byColor)continue;
+    if(p.t==='p'){
+      const d=byColor==='w'?-1:1;
+      if(rr+d===r&&(cc-1===c||cc+1===c))return true;
+    }else if(p.t==='n'){
+      if([[ -2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]].some(([a,d])=>rr+a===r&&cc+d===c))return true;
+    }else if(p.t==='k'){
+      if(Math.max(Math.abs(rr-r),Math.abs(cc-c))===1)return true;
+    }else{
+      const dirs=p.t==='b'?[[-1,-1],[-1,1],[1,-1],[1,1]]:
+        p.t==='r'?[[-1,0],[1,0],[0,-1],[0,1]]:
+        [[-1,-1],[-1,1],[1,-1],[1,1],[-1,0],[1,0],[0,-1],[0,1]];
+      for(const [dr,dc] of dirs){
+        let x=rr+dr,y=cc+dc;
+        while(inside(x,y)){ if(x===r&&y===c)return true; if(b[x][y])break; x+=dr;y+=dc; }
+      }
+    }
+  }
+  return false;
+}
+function isKingInCheck(color,b=board){
+  const k=findKing(color,b); if(!k)return false;
+  return isSquareAttacked(k.r,k.c,color==='w'?'b':'w',b);
+}
+function allLegal(color){
+  let a=[];for(let r=0;r<8;r++)for(let c=0;c<8;c++)if(board[r][c]?.c===color)a=a.concat(legalMovesFor(r,c,true));
+  return a;
+}
+
+function snapshot(){
+  return clone({board,turn,enPassant,castling,halfmove,moveNumber,captured,gameOver});
+}
+function executeMove(from,to){
+  const p=board[from.r][from.c], victim=to.enPassant?board[from.r][to.c]:board[to.r][to.c];
+  history.push(snapshot());
+  const notation=squareName(from.r,from.c)+'→'+squareName(to.r,to.c);
+
+  if(victim){
+    captured[victim.c].push(victim.t);
+    log('IPS',`${names[p.t]} neutralizou ${names[victim.t]} em ${squareName(to.r,to.c)}. Pacote descartado.`,'bad');
+    magicAt(to.r,to.c,true);tone(110,.12,'sawtooth');
+  } else {
+    log('NET',`${names[p.t]} ${notation}. Movimento autorizado pela política arcana.`,'ok');
+    magicAt(to.r,to.c,false);tone(360,.06,'triangle');
+  }
+
+  // update rights
+  if(p.t==='k'){castling[p.c].k=false;castling[p.c].q=false;}
+  if(p.t==='r'){
+    const home=p.c==='w'?7:0;
+    if(from.r===home&&from.c===0)castling[p.c].q=false;
+    if(from.r===home&&from.c===7)castling[p.c].k=false;
+  }
+  if(victim?.t==='r'){
+    const home=victim.c==='w'?7:0;
+    if(to.r===home&&to.c===0)castling[victim.c].q=false;
+    if(to.r===home&&to.c===7)castling[victim.c].k=false;
+  }
+
+  applyToBoard(board,from,to,p,true);
+  enPassant=null;
+  if(p.t==='p'&&Math.abs(to.r-from.r)===2)enPassant={r:(from.r+to.r)/2,c:from.c};
+
+  selected=null; legalTargets=[];
+  const promote = p.t==='p' && (to.r===0||to.r===7);
+  if(promote){
+    pendingPromotion={r:to.r,c:to.c,color:p.c,after:()=>finishTurn(p,victim,to)};
+    showPromotion();
+    render(); return;
+  }
+  finishTurn(p,victim,to);
+}
+function finishTurn(p,victim,to){
+  halfmove=(p.t==='p'||victim)?0:halfmove+1;
+  if(turn==='b')moveNumber++;
+  turn=turn==='w'?'b':'w';
+
+  const check=isKingInCheck(turn,board);
+  const moves=allLegal(turn);
+  if(check){
+    document.getElementById('boardWrap').classList.add('glitch');
+    setTimeout(()=>document.getElementById('boardWrap').classList.remove('glitch'),600);
+    log('SIEM',`IOC CRÍTICO: ${turn==='w'?'Blue Mage':'Shadow Operator'} está em CHECK. Root CA exposta.`,'warn');
+    tone(190,.18,'square');
+  }
+  if(moves.length===0){
+    gameOver=true;
+    if(check){
+      const winner=turn==='w'?'SHADOW OPERATOR':'BLUE MAGE';
+      log('IR',`CHECKMATE. ${winner} obteve domínio total. Incidente declarado SEV-0.`,'bad');
+      document.getElementById('threatText').textContent=`CHECKMATE // ${winner} comprometeu o domínio.`;
+      bigSpell();
+    }else{
+      log('IR','STALEMATE. Nenhum caminho de ataque restante. Zero Trust ficou literal.','warn');
+      document.getElementById('threatText').textContent='STALEMATE // superfície de ataque zerada.';
+    }
+  } else if(halfmove>=100){
+    gameOver=true; log('GRC','Empate pela regra dos 50 movimentos. Auditor pediu evidência e ninguém tinha.','warn');
+  }
+  render();
+}
+function showPromotion(){
+  const box=document.getElementById('promoButtons');box.innerHTML='';
+  ['q','r','b','n'].forEach(t=>{
+    const b=document.createElement('button');b.textContent=symbols[pendingPromotion.color][t];b.title=names[t];
+    b.onclick=()=>{
+      board[pendingPromotion.r][pendingPromotion.c].t=t;
+      log('IAM',`Privilege escalation concluída: SOC Analyst agora possui role "${names[t]}".`,'magic');
+      const after=pendingPromotion.after;pendingPromotion=null;promotionModal.classList.remove('show');after();
+    };
+    box.appendChild(b);
+  });
+  promotionModal.classList.add('show');
+}
+
+function magicAt(r,c,capture){
+  const sq=[...boardEl.children].find(x=>+x.dataset.r===r&&+x.dataset.c===c);
+  if(!sq)return;
+  const br=boardEl.getBoundingClientRect(), sr=sq.getBoundingClientRect();
+  const x=sr.left-br.left+sr.width/2,y=sr.top-br.top+sr.height/2;
+  const ring=document.createElement('div');ring.className='spell-ring'+(capture?' red':'');ring.style.left=x+'px';ring.style.top=y+'px';fxEl.appendChild(ring);
+  const rune=document.createElement('div');rune.className='rune';rune.textContent=capture?'⌁⚡⌁':'⟡';rune.style.left=x+'px';rune.style.top=y+'px';rune.style.color=capture?'var(--red)':'var(--cyan)';fxEl.appendChild(rune);
+  for(let i=0;i<18;i++){
+    const q=document.createElement('i');q.className='particle';q.style.left=x+'px';q.style.top=y+'px';
+    q.style.color=capture?'var(--red)':(i%2?'var(--cyan)':'var(--green)');
+    const a=Math.random()*Math.PI*2,d=20+Math.random()*85;
+    q.style.setProperty('--dx',Math.cos(a)*d+'px');q.style.setProperty('--dy',Math.sin(a)*d+'px');fxEl.appendChild(q);
+    setTimeout(()=>q.remove(),800);
+  }
+  setTimeout(()=>{ring.remove();rune.remove()},1100);
+}
+function bigSpell(){
+  for(let i=0;i<8;i++)setTimeout(()=>magicAt(Math.floor(Math.random()*8),Math.floor(Math.random()*8),i%2===0),i*90);
+}
+function log(tag,msg,cls=''){
+  const d=document.createElement('div');d.className='log '+cls;
+  const now=new Date();const t=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  d.innerHTML=`<span class="time">[${t}]</span> <b>${tag}</b> :: ${msg}`;
+  terminal.prepend(d);
+}
+let audioCtx=null;
+function tone(freq,dur,type='sine'){
+  if(!soundOn)return;
+  try{
+    audioCtx??=new (window.AudioContext||window.webkitAudioContext)();
+    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+    o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(.045,audioCtx.currentTime);g.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+dur);
+    o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur);
+  }catch(e){}
+}
+
+document.getElementById('newBtn').onclick=()=>{if(confirm('Reiniciar a batalha arcana?'))reset()};
+document.getElementById('flipBtn').onclick=()=>{flipped=!flipped;render();log('UI','Orientação do tabuleiro invertida. MITRE não tem técnica pra isso.','magic')};
+document.getElementById('soundBtn').onclick=e=>{soundOn=!soundOn;e.currentTarget.textContent='♪ Som: '+(soundOn?'ON':'OFF');if(soundOn)tone(600,.05)};
+document.getElementById('undoBtn').onclick=()=>{
+  if(!history.length||pendingPromotion)return;
+  const s=history.pop();board=s.board;turn=s.turn;enPassant=s.enPassant;castling=s.castling;halfmove=s.halfmove;moveNumber=s.moveNumber;captured=s.captured;gameOver=s.gameOver;
+  selected=null;legalTargets=[];log('FORENSICS','Rollback executado. A evidência convenientemente voltou no tempo.','warn');render();
+};
+
+reset();
+})();
+</script>
+</body>
+</html>
